@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { postJSON } from '../api'
+import { postJSON, formatTime } from '../api'
 const kwh = ref(400)
 const cmp = ref(null)
 const run = async () => { cmp.value = await postJSON('/api/compare', { kwh: kwh.value, persist: true }) }
@@ -17,8 +17,12 @@ const run = async () => { cmp.value = await postJSON('/api/compare', { kwh: kwh.
       <div class="panel"><h3>尖峰 ×{{ cmp.peak_factor }}</h3><div class="hero-num">¥{{ cmp.peak_total }}</div></div>
       <div class="panel"><h3>差额</h3><div class="hero-num">¥{{ cmp.delta }}</div></div>
     </div>
+    <p v-if="cmp" class="muted as-of">
+      尖峰系数 {{ cmp.coefficient }} · 系数更新时间 {{ formatTime(cmp.coefficient_as_of) }}
+    </p>
   </div>
 </template>
 <style scoped>
 .compare-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+.as-of { margin-top: 0.5rem; }
 </style>

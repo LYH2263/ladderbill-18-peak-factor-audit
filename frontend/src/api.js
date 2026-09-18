@@ -8,3 +8,13 @@ export async function postJSON(path, body) {
   if (!r.ok) throw new Error(await r.text())
   return r.json()
 }
+export async function putJSON(path, body) {
+  const r = await fetch(path, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  if (!r.ok) throw new Error(await r.text())
+  return r.json()
+}
+export function formatTime(t) {
+  if (!t) return '—'
+  const d = new Date(t)
+  return isNaN(d) ? t : d.toLocaleString()
+}

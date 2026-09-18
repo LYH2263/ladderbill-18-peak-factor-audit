@@ -20,3 +20,9 @@ class CalcRunOut(BaseModel):
     input_json: str
     result_json: str
     created_at: str
+
+
+class PeakFactorUpdateRequest(BaseModel):
+    new_value: float = Field(gt=0)
+    operator: str = Field(default="admin", min_length=1, max_length=64)
+    note: str | None = Field(default=None, max_length=200)

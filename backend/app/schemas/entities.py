@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AccountOut(BaseModel):
@@ -20,3 +20,9 @@ class ReadingOut(BaseModel):
     account_id: int
     kwh: float
     peak: int
+
+
+class PeakFactorUpdate(BaseModel):
+    value: float = Field(gt=0)
+    operator: str = Field(default="admin", min_length=1, max_length=64)
+    remark: str | None = Field(default=None, max_length=200)

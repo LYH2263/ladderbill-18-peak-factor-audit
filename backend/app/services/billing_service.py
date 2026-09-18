@@ -1,13 +1,19 @@
 import json
+from datetime import datetime, timezone
 
 from app.db import connect
 from app.engines.peak_compare import compare_plain_vs_peak
 from app.engines.tier_progressive import calc_bill
 from app.repositories import accounts as accounts_repo
+from app.repositories import audits as audits_repo
 from app.repositories import readings as readings_repo
 from app.repositories import runs as runs_repo
 from app.repositories import settings as settings_repo
 from app.repositories import tiers as tiers_repo
+
+
+class UnchangedPeakFactorError(ValueError):
+    """新值与当前生效值相同，拒绝写入。"""
 
 
 class BillingService:
@@ -41,9 +47,30 @@ class BillingService:
     def settings_map(self):
         return settings_repo.get_map(self._conn)
 
+    def update_peak_factor(self, new_value: float, operator: str, remark: str | None):
+        old_value = settings_repo.peak_factor(self._conn)
+        new_value = float(new_value)
+        if new_value == old_value:
+            raise UnchangedPeakFactorError(f"peak_factor 未变化：{old_value}")
+        now = datetime.now(timezone.utc).isoformat()
+        settings_repo.set_peak_factor(self._conn, new_value, now)
+        audit_id = audits_repo.insert(self._conn, old_value, new_value, operator, remark, now)
+        self._conn.commit()
+        return {
+            "id": audit_id,
+            "old_value": old_value,
+            "new_value": new_value,
+            "changed_at": now,
+            "operator": operator,
+            "remark": remark,
+        }
+
+    def list_peak_factor_audits(self, page: int = 1, page_size: int = 10):
+        return audits_repo.list_page(self._conn, page, page_size)
+
     def run_bill(self, kwh: float, peak: bool, account_id: int | None, persist: bool):
         tiers = tiers_repo.as_calc_rows(self._conn)
-        pf = settings_repo.peak_factor(self._conn)
+        pf, as_of = settings_repo.peak_factor_row(self._conn)
         factor = pf if peak else 1.0
         result = calc_bill(kwh, tiers, factor)
         run_id = None
@@ -55,16 +82,16 @@ class BillingService:
                 result,
                 account_id,
             )
-        return {"run_id": run_id, **result}
+        return {"run_id": run_id, "coefficient_as_of": as_of, **result}
 
     def run_compare(self, kwh: float, persist: bool):
         tiers = tiers_repo.as_calc_rows(self._conn)
-        pf = settings_repo.peak_factor(self._conn)
+        pf, as_of = settings_repo.peak_factor_row(self._conn)
         result = compare_plain_vs_peak(kwh, tiers, pf)
         run_id = None
         if persist:
             run_id = runs_repo.insert(self._conn, "compare", {"kwh": kwh}, result, None)
-        return {"run_id": run_id, **result}
+        return {"run_id": run_id, "coefficient_as_of": as_of, **result}
 
     def list_history(self, limit: int = 50):
         return runs_repo.list_recent(self._conn, limit)

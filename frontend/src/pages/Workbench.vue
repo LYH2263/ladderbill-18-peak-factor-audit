@@ -20,6 +20,7 @@ const run = async () => {
     </div>
     <div v-if="result" class="panel">
       <p>合计 ¥{{ result.total }} <span class="muted">记录#{{ result.run_id }}</span></p>
+      <p class="muted">本次系数 ×{{ result.peak_factor }} · 系数更新于 {{ result.coefficient_as_of ?? '—' }}</p>
       <TierLadder :segments="result.segments" />
       <SegmentTable :rows="result.segments" />
     </div>
